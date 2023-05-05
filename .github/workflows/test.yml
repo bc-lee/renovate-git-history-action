@@ -1,9 +1,9 @@
 name: 'build-test'
-on: # rebuild any PRs and main branch changes
+on: # rebuild any PRs and master branch changes
   pull_request:
   push:
     branches:
-      - main
+      - master
       - 'releases/*'
 
 jobs:
@@ -11,14 +11,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
-      - run: |
-          npm install
-      - run: |
-          npm run all
-  test: # make sure the action works on a clean machine without building
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-      - uses: ./
+      - name: Set Node.js 16.x
+        uses: actions/setup-node@v3
         with:
-          milliseconds: 1000
+          node-version: 16.x
+      - name: Install dependencies
+        run: npm ci
+      - name: Run all
+        run: npm run all
