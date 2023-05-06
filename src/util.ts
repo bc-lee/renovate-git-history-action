@@ -191,13 +191,13 @@ export async function getGitHistoryDescription(
     if (url.includes("github.com")) {
       // Github example: https://github.com/renovatebot/renovate/compare/44f22984ddaafe2fceae4965076d7cdb26bcd716...f9f52a5dec1d7883b17dd9ce0ce0e15bd6997ad7
       diffDescription = `${url}/compare/${oldShortSha}...${newShortSha}`
-      diffLink = `${url}/compare/${oldSha}...${newSha}`
+      diffLink = `${url}/compare/${oldLongSha}...${newLongSha}`
       clickableLink = `${url}/commit/`
       isClickable = true
     } else if (url.includes("googlesource.com")) {
       // googlesource example: https://chromium.googlesource.com/chromium/tools/build.git/+log/b13c438aadd44834c675b94a3eb51e9b32eb7bfa..b13c438aadd44834c675b94a3eb51e9b32eb7bfa
       diffDescription = `${url}/+log/${oldShortSha}..${newShortSha}`
-      diffLink = `${url}/+log/${oldSha}..${newSha}`
+      diffLink = `${url}/+log/${oldLongSha}..${newLongSha}`
       clickableLink = `${url}/+/`
       isClickable = true
     } else {
