@@ -1,6 +1,11 @@
 name: 'renovate-git-history-action'
 description: 'Display git history for Renovate updates'
 author: 'Byoungchan Lee'
+inputs:
+  token:
+    description: >
+      Personal access token (PAT) used to fetch the repository.
+    default: ${{ github.token }}
 runs:
   using: 'node16'
   main: 'dist/index.js'

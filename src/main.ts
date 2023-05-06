@@ -5,11 +5,12 @@ import {getGitHistoryDescription, parseTable} from "./util"
 
 async function run(): Promise<void> {
   try {
-    const token = process.env.GITHUB_TOKEN as string
+    const token = core.getInput("token")
     if (!token) {
       core.setFailed("No token found.")
       return
     }
+    core.setSecret(token)
 
     // load event.json
     const eventPath = process.env.GITHUB_EVENT_PATH as string
