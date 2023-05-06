@@ -43,7 +43,9 @@ const core = __importStar(__nccwpck_require__(2186));
 const fs = __importStar(__nccwpck_require__(7147));
 const core_1 = __nccwpck_require__(6762);
 const util_1 = __nccwpck_require__(4024);
+const signature = "Written by renovate-git-history-action.";
 function run() {
+    var _a;
     return __awaiter(this, void 0, void 0, function* () {
         try {
             const token = core.getInput("token");
@@ -82,25 +84,40 @@ function run() {
             }
             core.info("Found updates for the following packages:");
             core.info(gitUpdates.map(update => update.url).join("\n"));
+            // Find a comment from renovate-git-history-action
+            const octokit = new core_1.Octokit({ auth: token });
+            const comments = yield octokit.request("GET /repos/{owner}/{repo}/issues/{issue_number}/comments", {
+                owner,
+                repo,
+                issue_number: prNumber
+            });
+            const existingCommentId = (_a = comments.data.find(c => { var _a; return (_a = c.body) === null || _a === void 0 ? void 0 : _a.includes(signature); })) === null || _a === void 0 ? void 0 : _a.id;
             // Now, create comment message for each git update
-            let description = "";
+            let description = "# Changes from git digests\n\n";
             for (const gitUpdate of gitUpdates) {
                 description += yield (0, util_1.getGitHistoryDescription)(gitUpdate);
             }
-            if (!description) {
-                core.info("Nothing to comment.");
+            description += `\n\n${signature}\n`;
+            core.debug(`Description: \n${description}`);
+            if (existingCommentId) {
+                // Update the comment
+                yield octokit.request("PATCH /repos/{owner}/{repo}/issues/comments/{comment_id}", {
+                    owner,
+                    repo,
+                    comment_id: existingCommentId,
+                    body: description
+                });
+                core.info(`Comment #${existingCommentId} updated.`);
                 return;
             }
-            core.info(`Description: \n${description}`);
             // Create a comment on the PR
-            const octokit = new core_1.Octokit({ auth: token });
-            yield octokit.request("POST /repos/{owner}/{repo}/issues/{issue_number}/comments", {
+            const result = yield octokit.request("POST /repos/{owner}/{repo}/issues/{issue_number}/comments", {
                 owner,
                 repo,
                 issue_number: prNumber,
                 body: description
             });
-            core.info("Comment created.");
+            core.info(`Comment #${result.data.id} created.`);
         }
         catch (error) {
             core.setFailed(`${error.message}\n${error.stack}`);
@@ -339,6 +356,7 @@ function getGitHistoryDescription(gitUpdate) {
         else {
             resultString += `- ${diffDescription}\n\n`;
         }
+        resultString += "<details><summary>Details</summary>\n\n";
         // Add git log
         // Example
         // [abcdefg](https://chromium.googlesource.com/chromium/tools/build.git/+/b13c438aadd44834c675b94a3eb51e9b32eb7bfa) 2023-05-05 bsheedy@chromium Update dawn_top_of_tree config
@@ -350,6 +368,7 @@ function getGitHistoryDescription(gitUpdate) {
                 resultString += `${entry.shortHash} ${entry.date} ${entry.email} ${entry.subject}\n`;
             }
         }
+        resultString += "</details>\n\n";
         return resultString;
     });
 }

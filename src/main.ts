@@ -3,6 +3,8 @@ import * as fs from "fs"
 import {Octokit} from "@octokit/core"
 import {getGitHistoryDescription, parseTable} from "./util"
 
+const signature = "Written by renovate-git-history-action."
+
 async function run(): Promise<void> {
   try {
     const token = core.getInput("token")
@@ -48,22 +50,47 @@ async function run(): Promise<void> {
     core.info("Found updates for the following packages:")
     core.info(gitUpdates.map(update => update.url).join("\n"))
 
+    // Find a comment from renovate-git-history-action
+    const octokit = new Octokit({auth: token})
+    const comments = await octokit.request(
+      "GET /repos/{owner}/{repo}/issues/{issue_number}/comments",
+      {
+        owner,
+        repo,
+        issue_number: prNumber
+      }
+    )
+    const existingCommentId = comments.data.find(c =>
+      c.body?.includes(signature)
+    )?.id
+
     // Now, create comment message for each git update
-    let description = ""
+    let description = "# Changes from git digests\n\n"
     for (const gitUpdate of gitUpdates) {
       description += await getGitHistoryDescription(gitUpdate)
     }
 
-    if (!description) {
-      core.info("Nothing to comment.")
+    description += `\n\n${signature}\n`
+
+    core.debug(`Description: \n${description}`)
+
+    if (existingCommentId) {
+      // Update the comment
+      await octokit.request(
+        "PATCH /repos/{owner}/{repo}/issues/comments/{comment_id}",
+        {
+          owner,
+          repo,
+          comment_id: existingCommentId,
+          body: description
+        }
+      )
+      core.info(`Comment #${existingCommentId} updated.`)
       return
     }
 
-    core.info(`Description: \n${description}`)
-
     // Create a comment on the PR
-    const octokit = new Octokit({auth: token})
-    await octokit.request(
+    const result = await octokit.request(
       "POST /repos/{owner}/{repo}/issues/{issue_number}/comments",
       {
         owner,
@@ -72,7 +99,7 @@ async function run(): Promise<void> {
         body: description
       }
     )
-    core.info("Comment created.")
+    core.info(`Comment #${result.data.id} created.`)
   } catch (error) {
     core.setFailed(`${error.message}\n${error.stack}`)
   }

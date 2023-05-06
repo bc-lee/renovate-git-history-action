@@ -229,6 +229,8 @@ export async function getGitHistoryDescription(
     resultString += `- ${diffDescription}\n\n`
   }
 
+  resultString += "<details><summary>Details</summary>\n\n"
+
   // Add git log
   // Example
   // [abcdefg](https://chromium.googlesource.com/chromium/tools/build.git/+/b13c438aadd44834c675b94a3eb51e9b32eb7bfa) 2023-05-05 bsheedy@chromium Update dawn_top_of_tree config
@@ -240,6 +242,7 @@ export async function getGitHistoryDescription(
       resultString += `${entry.shortHash} ${entry.date} ${entry.email} ${entry.subject}\n`
     }
   }
+  resultString += "</details>\n\n"
 
   return resultString
 }
