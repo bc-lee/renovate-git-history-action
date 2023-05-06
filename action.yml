@@ -1,11 +1,6 @@
 name: 'renovate-git-history-action'
 description: 'Display git history for Renovate updates'
 author: 'Byoungchan Lee'
-inputs:
-  milliseconds: # change this
-    required: true
-    description: 'input description here'
-    default: 'default value if applicable'
 runs:
   using: 'node16'
   main: 'dist/index.js'
