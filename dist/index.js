@@ -182,22 +182,6 @@ This PR contains the following updates:
 | https://chromium.googlesource.com/chromium/src/third_party/boringssl | digest | `6d1223d3c51f79fe044ba3837cbd495d0bd54740` -> `124d8d6d4967573d4cea2d99d612c0686c8f283a` |
 
 ---
-
-### Configuration
-
-📅 **Schedule**: Branch creation - At any time (no schedule defined), Automerge - At any time (no schedule defined).
-
-🚦 **Automerge**: Disabled by config. Please merge this manually once you are satisfied.
-
-♻ **Rebasing**: Whenever PR becomes conflicted, or you tick the rebase/retry checkbox.
-
-🔕 **Ignore**: Close this PR and you won't be reminded about this update again.
-
----
-
- - [ ] <!-- rebase-check -->If you want to rebase/retry this PR, check this box
-
----
  */
 function parseTable(body) {
     return __awaiter(this, void 0, void 0, function* () {
@@ -270,110 +254,113 @@ function getGitHistoryDescription(gitUpdate) {
         const newSha = gitUpdate.newSha;
         // First, make a temp directory
         const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "git-history-"));
+        // Cleanup on exit
         try {
-            // clone into the temp directory
-            yield execGit(["clone", url, tempDir]);
-        }
-        catch (error) {
-            const msg = `Failed to clone ${url}: ${error}`;
-            core.warning(msg);
-            return msg;
-        }
-        // Get short sha
-        const oldShortSha = yield execGitWithStdout(["rev-parse", "--short", oldSha], tempDir);
-        const newShortSha = yield execGitWithStdout(["rev-parse", "--short", newSha], tempDir);
-        // Get long sha
-        let oldLongSha = "";
-        try {
-            oldLongSha = yield execGitWithStdout(["rev-parse", oldSha], tempDir);
-        }
-        catch (error) {
-            const msg = `Failed to get long sha for ${oldSha}: ${error}`;
-            core.warning(msg);
-            return msg;
-        }
-        const newLongSha = yield execGitWithStdout(["rev-parse", newSha], tempDir);
-        let log = [];
-        try {
-            log = (yield execGitWithStdout([
-                "log",
-                "--date=format:%Y-%m-%d",
-                "--format=%H %h %ad %ae %s",
-                `${oldLongSha}..${newLongSha}`
-            ], tempDir))
-                .split("\n")
-                .filter(line => line.length > 0);
-        }
-        catch (error) {
-            const msg = `Failed to get git log: ${error}`;
-            core.warning(msg);
-            core.warning(error.stack);
-            return msg;
-        }
-        const gitEntries = [];
-        for (const line of log) {
-            const parts = line.split(" ");
-            const hash = parts[0];
-            const shortHash = parts[1];
-            const date = parts[2];
-            const email = parts[3];
-            const subject = parts.slice(4).join(" ");
-            gitEntries.push({
-                hash,
-                shortHash,
-                date,
-                email,
-                subject
-            });
-        }
-        let resultString = "";
-        // Add a link for diff
-        // Example
-        // - Github: https://github.com/renovatebot/renovate/compare/44f22984ddaafe2fceae4965076d7cdb26bcd716...f9f52a5dec1d7883b17dd9ce0ce0e15bd6997ad7
-        // - googlesource: https://chromium.googlesource.com/chromium/tools/build.git/+log/6804deb78db2..329766fab495
-        let diffDescription = "";
-        let diffLink = "";
-        let clickableLink = "";
-        let isClickable = false;
-        if (url.includes("github.com")) {
-            diffDescription = `${url}/compare/${oldShortSha}...${newShortSha}`;
-            diffLink = `${url}/compare/${oldSha}...${newSha}`;
-            clickableLink = `${url}/commit/`;
-            isClickable = true;
-        }
-        else if (url.includes("googlesource.com")) {
-            diffDescription = `${url}/+log/${oldShortSha}..${newShortSha}`;
-            diffLink = `${url}/+log/${oldSha}..${newSha}`;
-            clickableLink = `${url}/+/`;
-            isClickable = true;
-        }
-        else {
-            diffDescription = `${url} ${oldSha}..${newSha}`;
-        }
-        if (isClickable) {
-            resultString += `- [${diffDescription}](${diffLink})\n\n`;
-        }
-        else {
-            resultString += `- ${diffDescription}\n\n`;
-        }
-        resultString += "<details><summary>Details</summary>\n\n";
-        // Add git log
-        // Example
-        // [abcdefg](https://chromium.googlesource.com/chromium/tools/build.git/+/b13c438aadd44834c675b94a3eb51e9b32eb7bfa) 2023-05-05 bsheedy@chromium Update dawn_top_of_tree config
-        for (const entry of gitEntries) {
-            if (clickableLink) {
-                resultString += `[${entry.shortHash}](${clickableLink}${entry.hash}) ${entry.date} ${entry.email} ${entry.subject}\n`;
+            // I don't like nested try/catch blocks, but it is necessary.
+            try {
+                // clone into the temp directory
+                yield execGit(["clone", url, tempDir]);
+            }
+            catch (error) {
+                const msg = `Failed to clone ${url}: ${error}`;
+                core.warning(msg);
+                return msg;
+            }
+            // Get short SHA
+            const oldShortSha = yield execGitWithStdout(["rev-parse", "--short", oldSha], tempDir);
+            const newShortSha = yield execGitWithStdout(["rev-parse", "--short", newSha], tempDir);
+            // Get long SHA
+            let oldLongSha = "";
+            try {
+                oldLongSha = yield execGitWithStdout(["rev-parse", oldSha], tempDir);
+            }
+            catch (error) {
+                const msg = `Failed to get long sha for ${oldSha}: ${error}`;
+                core.warning(msg);
+                return msg;
+            }
+            const newLongSha = yield execGitWithStdout(["rev-parse", newSha], tempDir);
+            let log = [];
+            try {
+                log = (yield execGitWithStdout([
+                    "log",
+                    "--date=format:%Y-%m-%d",
+                    "--format=%H %h %ad %ae %s",
+                    `${oldLongSha}..${newLongSha}`
+                ], tempDir))
+                    .split("\n")
+                    .filter(line => line.length > 0);
+            }
+            catch (error) {
+                const msg = `Failed to get git log: ${error}`;
+                core.warning(msg);
+                return msg;
+            }
+            const gitEntries = [];
+            for (const line of log) {
+                const parts = line.split(" ");
+                const hash = parts[0];
+                const shortHash = parts[1];
+                const date = parts[2];
+                const email = parts[3];
+                const subject = parts.slice(4).join(" ");
+                gitEntries.push({
+                    hash,
+                    shortHash,
+                    date,
+                    email,
+                    subject
+                });
+            }
+            let resultString = "";
+            // Add a link for the diff
+            let diffDescription = "";
+            let diffLink = "";
+            let clickableLink = "";
+            let isClickable = false;
+            if (url.includes("github.com")) {
+                // Github example: https://github.com/renovatebot/renovate/compare/44f22984ddaafe2fceae4965076d7cdb26bcd716...f9f52a5dec1d7883b17dd9ce0ce0e15bd6997ad7
+                diffDescription = `${url}/compare/${oldShortSha}...${newShortSha}`;
+                diffLink = `${url}/compare/${oldSha}...${newSha}`;
+                clickableLink = `${url}/commit/`;
+                isClickable = true;
+            }
+            else if (url.includes("googlesource.com")) {
+                // googlesource example: https://chromium.googlesource.com/chromium/tools/build.git/+log/b13c438aadd44834c675b94a3eb51e9b32eb7bfa..b13c438aadd44834c675b94a3eb51e9b32eb7bfa
+                diffDescription = `${url}/+log/${oldShortSha}..${newShortSha}`;
+                diffLink = `${url}/+log/${oldSha}..${newSha}`;
+                clickableLink = `${url}/+/`;
+                isClickable = true;
             }
             else {
-                resultString += `${entry.shortHash} ${entry.date} ${entry.email} ${entry.subject}\n`;
+                core.warning(`Unknown git url: ${url}`);
+                diffDescription = `${url} ${oldSha}..${newSha}`;
             }
+            if (isClickable) {
+                resultString += `- [${diffDescription}](${diffLink})\n\n`;
+            }
+            else {
+                resultString += `- ${diffDescription}\n\n`;
+            }
+            resultString += "<details><summary>Details</summary>\n\n";
+            for (const entry of gitEntries) {
+                if (clickableLink) {
+                    resultString += `[${entry.shortHash}](${clickableLink}${entry.hash}) ${entry.date} ${entry.email} ${entry.subject}\n`;
+                }
+                else {
+                    resultString += `${entry.shortHash} ${entry.date} ${entry.email} ${entry.subject}\n`;
+                }
+            }
+            resultString += "</details>\n\n";
+            return resultString;
         }
-        resultString += "</details>\n\n";
-        return resultString;
+        finally {
+            fs.rmSync(tempDir, { recursive: true, force: true });
+        }
     });
 }
 exports.getGitHistoryDescription = getGitHistoryDescription;
-function getEnvironmentVariables() {
+function sanitizeEnvs() {
     const env = {};
     for (const key in process.env) {
         const value = process.env[key];
@@ -381,6 +368,7 @@ function getEnvironmentVariables() {
             env[key] = value;
         }
     }
+    // We need to parse dates, so we need to reset the locale and timezone.
     env["LANG"] = "C.UTF-8";
     env["LC_ALL"] = "C.UTF-8";
     env["TZ"] = "UTC";
@@ -390,7 +378,7 @@ function execGit(args, workingDirectory) {
     return __awaiter(this, void 0, void 0, function* () {
         yield exec.exec("git", args, {
             cwd: workingDirectory,
-            env: getEnvironmentVariables()
+            env: sanitizeEnvs()
         });
         return null;
     });
@@ -400,7 +388,7 @@ function execGitWithStdout(args, workingDirectory) {
         let result = "";
         yield exec.exec("git", args, {
             cwd: workingDirectory,
-            env: getEnvironmentVariables(),
+            env: sanitizeEnvs(),
             listeners: {
                 stdout: (data) => {
                     result += data.toString();
