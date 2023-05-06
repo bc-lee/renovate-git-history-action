@@ -46,6 +46,11 @@ const util_1 = __nccwpck_require__(4024);
 function run() {
     return __awaiter(this, void 0, void 0, function* () {
         try {
+            const token = process.env.GITHUB_TOKEN;
+            if (!token) {
+                core.setFailed("No token found.");
+                return;
+            }
             // load event.json
             const eventPath = process.env.GITHUB_EVENT_PATH;
             const event = JSON.parse(fs.readFileSync(eventPath, "utf8"));
@@ -87,7 +92,7 @@ function run() {
             }
             core.info(`Description: \n${description}`);
             // Create a comment on the PR
-            const octokit = new core_1.Octokit({ auth: process.env.GITHUB_TOKEN });
+            const octokit = new core_1.Octokit({ auth: token });
             yield octokit.request("POST /repos/{owner}/{repo}/issues/{issue_number}/comments", {
                 owner,
                 repo,

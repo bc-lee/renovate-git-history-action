@@ -5,6 +5,12 @@ import {getGitHistoryDescription, parseTable} from "./util"
 
 async function run(): Promise<void> {
   try {
+    const token = process.env.GITHUB_TOKEN as string
+    if (!token) {
+      core.setFailed("No token found.")
+      return
+    }
+
     // load event.json
     const eventPath = process.env.GITHUB_EVENT_PATH as string
     const event = JSON.parse(fs.readFileSync(eventPath, "utf8"))
@@ -55,7 +61,7 @@ async function run(): Promise<void> {
     core.info(`Description: \n${description}`)
 
     // Create a comment on the PR
-    const octokit = new Octokit({auth: process.env.GITHUB_TOKEN})
+    const octokit = new Octokit({auth: token})
     await octokit.request(
       "POST /repos/{owner}/{repo}/issues/{issue_number}/comments",
       {
