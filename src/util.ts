@@ -2,7 +2,7 @@ import * as fs from "fs"
 import * as path from "path"
 import * as os from "os"
 import * as core from "@actions/core"
-import {simpleGit} from "simple-git"
+import * as sgit from "simple-git"
 
 export interface GitUpdate {
   url: string
@@ -119,7 +119,7 @@ export async function getGitHistoryDescription(
   const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "git-history-"))
 
   // clone into the temp directory
-  const git = simpleGit({
+  const git = sgit.simpleGit({
     baseDir: tempDir
   })
   try {
@@ -145,12 +145,20 @@ export async function getGitHistoryDescription(
   }
   const newLongSha = await git.revparse(newSha)
 
-  const log = await git.log({
-    from: oldLongSha,
-    to: newLongSha,
-    date: "format:%Y-%m-%d",
-    format: "%H %h %ad %ae %s"
-  })
+  let log: sgit.LogResult<string>
+  try {
+    log = await git.log({
+      from: oldLongSha,
+      to: newLongSha,
+      date: "format:%Y-%m-%d",
+      format: "%H %h %ad %ae %s"
+    })
+  } catch (e) {
+    const msg = `Failed to get git log: ${e}`
+    core.warning(msg)
+    core.warning(e.stack)
+    return msg
+  }
 
   interface GitEntry {
     hash: string
