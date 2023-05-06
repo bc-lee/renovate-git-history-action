@@ -2,7 +2,7 @@ import * as fs from "fs"
 import * as path from "path"
 import * as os from "os"
 import * as core from "@actions/core"
-import * as sgit from "simple-git"
+import * as exec from "@actions/exec"
 
 export interface GitUpdate {
   url: string
@@ -118,12 +118,9 @@ export async function getGitHistoryDescription(
   // First, make a temp directory
   const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "git-history-"))
 
-  // clone into the temp directory
-  const git = sgit.simpleGit({
-    baseDir: tempDir
-  })
   try {
-    await git.clone(url, ".")
+    // clone into the temp directory
+    await execGit(["clone", url, tempDir])
   } catch (e) {
     const msg = `Failed to clone ${url}: ${e}`
     core.warning(msg)
@@ -131,28 +128,45 @@ export async function getGitHistoryDescription(
   }
 
   // Get short sha
-  const oldShortSha = await git.revparse(["--short", oldSha])
-  const newShortSha = await git.revparse(["--short", newSha])
+  const oldShortSha = (
+    await execGitWithStdout(["rev-parse", "--short", oldSha], tempDir)
+  ).trim()
+  const newShortSha = (
+    await execGitWithStdout(["rev-parse", "--short", newSha], tempDir)
+  ).trim()
 
   // Get long sha
   let oldLongSha = ""
   try {
-    oldLongSha = await git.revparse(oldSha)
+    oldLongSha = (
+      await execGitWithStdout(["rev-parse", oldSha], tempDir)
+    ).trim()
   } catch (e) {
     const msg = `Failed to get long sha for ${oldSha}: ${e}`
     core.warning(msg)
     return msg
   }
-  const newLongSha = await git.revparse(newSha)
+  const newLongSha = (
+    await execGitWithStdout(["rev-parse", newSha], tempDir)
+  ).trim()
 
-  let log: sgit.LogResult<string>
+  let log: string[] = []
+
   try {
-    log = await git.log({
-      from: oldLongSha,
-      to: newLongSha,
-      date: "format:%Y-%m-%d",
-      format: "%H %h %ad %ae %s"
-    })
+    log = (
+      await execGitWithStdout(
+        [
+          "log",
+          "--date=format:%Y-%m-%d",
+          "--format=%H %h %ad %ae %s",
+          `${oldLongSha}..${newLongSha}`
+        ],
+        tempDir
+      )
+    )
+      .trim()
+      .split("\n")
+      .filter(line => line.length > 0)
   } catch (e) {
     const msg = `Failed to get git log: ${e}`
     core.warning(msg)
@@ -169,7 +183,7 @@ export async function getGitHistoryDescription(
   }
 
   const gitEntries: GitEntry[] = []
-  for (const line of log.all) {
+  for (const line of log) {
     const parts = line.split(" ")
     const hash = parts[0]
     const shortHash = parts[1]
@@ -229,4 +243,49 @@ export async function getGitHistoryDescription(
   }
 
   return resultString
+}
+
+function getEnvironmentVariables(): {[key: string]: string} {
+  const env: {
+    [key: string]: string
+  } = {}
+  for (const key in process.env) {
+    const value = process.env[key]
+    if (value != null) {
+      env[key] = value
+    }
+  }
+
+  env["LANG"] = "C.UTF-8"
+  env["LC_ALL"] = "C.UTF-8"
+  env["TZ"] = "UTC"
+  return env
+}
+
+async function execGit(
+  args: string[],
+  workingDirectory?: string
+): Promise<null> {
+  await exec.exec("git", args, {
+    cwd: workingDirectory,
+    env: getEnvironmentVariables()
+  })
+  return null
+}
+
+async function execGitWithStdout(
+  args: string[],
+  workingDirectory?: string
+): Promise<string> {
+  let result = ""
+  await exec.exec("git", args, {
+    cwd: workingDirectory,
+    env: getEnvironmentVariables(),
+    listeners: {
+      stdout: (data: Buffer) => {
+        result += data.toString()
+      }
+    }
+  })
+  return result
 }
