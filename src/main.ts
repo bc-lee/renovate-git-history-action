@@ -15,7 +15,9 @@ async function run(): Promise<void> {
       return
     }
 
-    // const prNumber = event.pull_request.number
+    const owner = event.repository.owner.login
+    const repo = event.repository.name
+    const prNumber = event.pull_request.number
     const prBody = event.pull_request.body as string
     if (!prBody) {
       core.setFailed("No PR body found.")
@@ -45,20 +47,27 @@ async function run(): Promise<void> {
       description += await getGitHistoryDescription(gitUpdate)
     }
 
+    if (!description) {
+      core.info("Nothing to comment.")
+      return
+    }
+
+    core.info(`Description: \n${description}`)
+
     // Create a comment on the PR
     const octokit = new Octokit({auth: process.env.GITHUB_TOKEN})
     await octokit.request(
       "POST /repos/{owner}/{repo}/issues/{issue_number}/comments",
       {
-        owner: event.repository.owner.login,
-        repo: event.repository.name,
-        issue_number: event.pull_request.number,
+        owner,
+        repo,
+        issue_number: prNumber,
         body: description
       }
     )
     core.info("Comment created.")
   } catch (error) {
-    if (error instanceof Error) core.setFailed(error.message)
+    core.setFailed(`${error.message}\n${error.stack}`)
   }
 }
 

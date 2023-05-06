@@ -54,7 +54,9 @@ function run() {
                 core.setFailed("No pull request found.");
                 return;
             }
-            // const prNumber = event.pull_request.number
+            const owner = event.repository.owner.login;
+            const repo = event.repository.name;
+            const prNumber = event.pull_request.number;
             const prBody = event.pull_request.body;
             if (!prBody) {
                 core.setFailed("No PR body found.");
@@ -79,19 +81,23 @@ function run() {
             for (const gitUpdate of gitUpdates) {
                 description += yield (0, util_1.getGitHistoryDescription)(gitUpdate);
             }
+            if (!description) {
+                core.info("Nothing to comment.");
+                return;
+            }
+            core.info(`Description: \n${description}`);
             // Create a comment on the PR
             const octokit = new core_1.Octokit({ auth: process.env.GITHUB_TOKEN });
             yield octokit.request("POST /repos/{owner}/{repo}/issues/{issue_number}/comments", {
-                owner: event.repository.owner.login,
-                repo: event.repository.name,
-                issue_number: event.pull_request.number,
+                owner,
+                repo,
+                issue_number: prNumber,
                 body: description
             });
             core.info("Comment created.");
         }
         catch (error) {
-            if (error instanceof Error)
-                core.setFailed(error.message);
+            core.setFailed(`${error.message}\n${error.stack}`);
         }
     });
 }
@@ -245,25 +251,25 @@ function getGitHistoryDescription(gitUpdate) {
             // clone into the temp directory
             yield execGit(["clone", url, tempDir]);
         }
-        catch (e) {
-            const msg = `Failed to clone ${url}: ${e}`;
+        catch (error) {
+            const msg = `Failed to clone ${url}: ${error}`;
             core.warning(msg);
             return msg;
         }
         // Get short sha
-        const oldShortSha = (yield execGitWithStdout(["rev-parse", "--short", oldSha], tempDir)).trim();
-        const newShortSha = (yield execGitWithStdout(["rev-parse", "--short", newSha], tempDir)).trim();
+        const oldShortSha = yield execGitWithStdout(["rev-parse", "--short", oldSha], tempDir);
+        const newShortSha = yield execGitWithStdout(["rev-parse", "--short", newSha], tempDir);
         // Get long sha
         let oldLongSha = "";
         try {
-            oldLongSha = (yield execGitWithStdout(["rev-parse", oldSha], tempDir)).trim();
+            oldLongSha = yield execGitWithStdout(["rev-parse", oldSha], tempDir);
         }
-        catch (e) {
-            const msg = `Failed to get long sha for ${oldSha}: ${e}`;
+        catch (error) {
+            const msg = `Failed to get long sha for ${oldSha}: ${error}`;
             core.warning(msg);
             return msg;
         }
-        const newLongSha = (yield execGitWithStdout(["rev-parse", newSha], tempDir)).trim();
+        const newLongSha = yield execGitWithStdout(["rev-parse", newSha], tempDir);
         let log = [];
         try {
             log = (yield execGitWithStdout([
@@ -272,14 +278,13 @@ function getGitHistoryDescription(gitUpdate) {
                 "--format=%H %h %ad %ae %s",
                 `${oldLongSha}..${newLongSha}`
             ], tempDir))
-                .trim()
                 .split("\n")
                 .filter(line => line.length > 0);
         }
-        catch (e) {
-            const msg = `Failed to get git log: ${e}`;
+        catch (error) {
+            const msg = `Failed to get git log: ${error}`;
             core.warning(msg);
-            core.warning(e.stack);
+            core.warning(error.stack);
             return msg;
         }
         const gitEntries = [];
@@ -377,7 +382,7 @@ function execGitWithStdout(args, workingDirectory) {
                 }
             }
         });
-        return result;
+        return result.trimEnd();
     });
 }
 

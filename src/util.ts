@@ -121,34 +121,33 @@ export async function getGitHistoryDescription(
   try {
     // clone into the temp directory
     await execGit(["clone", url, tempDir])
-  } catch (e) {
-    const msg = `Failed to clone ${url}: ${e}`
+  } catch (error) {
+    const msg = `Failed to clone ${url}: ${error}`
     core.warning(msg)
     return msg
   }
 
   // Get short sha
-  const oldShortSha = (
-    await execGitWithStdout(["rev-parse", "--short", oldSha], tempDir)
-  ).trim()
-  const newShortSha = (
-    await execGitWithStdout(["rev-parse", "--short", newSha], tempDir)
-  ).trim()
+  const oldShortSha = await execGitWithStdout(
+    ["rev-parse", "--short", oldSha],
+    tempDir
+  )
+
+  const newShortSha = await execGitWithStdout(
+    ["rev-parse", "--short", newSha],
+    tempDir
+  )
 
   // Get long sha
   let oldLongSha = ""
   try {
-    oldLongSha = (
-      await execGitWithStdout(["rev-parse", oldSha], tempDir)
-    ).trim()
-  } catch (e) {
-    const msg = `Failed to get long sha for ${oldSha}: ${e}`
+    oldLongSha = await execGitWithStdout(["rev-parse", oldSha], tempDir)
+  } catch (error) {
+    const msg = `Failed to get long sha for ${oldSha}: ${error}`
     core.warning(msg)
     return msg
   }
-  const newLongSha = (
-    await execGitWithStdout(["rev-parse", newSha], tempDir)
-  ).trim()
+  const newLongSha = await execGitWithStdout(["rev-parse", newSha], tempDir)
 
   let log: string[] = []
 
@@ -164,13 +163,13 @@ export async function getGitHistoryDescription(
         tempDir
       )
     )
-      .trim()
+
       .split("\n")
       .filter(line => line.length > 0)
-  } catch (e) {
-    const msg = `Failed to get git log: ${e}`
+  } catch (error) {
+    const msg = `Failed to get git log: ${error}`
     core.warning(msg)
-    core.warning(e.stack)
+    core.warning(error.stack)
     return msg
   }
 
@@ -287,5 +286,5 @@ async function execGitWithStdout(
       }
     }
   })
-  return result
+  return result.trimEnd()
 }
